@@ -1,78 +1,54 @@
-class ChatRoom:
-    def __init__(self):
-        self.users = {}
+import socket
+import threading
 
-    def add_user(self, username):
-        if username not in self.users:
-            self.users[username] = {'friends': set(), 'messages': []}
-
-    def add_friends(self, username):
-        if username in self.users:
-            friends = input("Entrez les noms des amis séparés par des virgules : ").split(',')
-            existing_users = self.users.keys()
-            for friend in friends:
-                if friend not in existing_users:
-                    print(f"L'ami {friend} n'existe pas.")
-                else:
-                    self.users[username]['friends'].add(friend)
-                    print(f"{friend} ajouté avec succès.")
-        else:
-            print("Utilisateur non trouvé.")
-
-    def send_message(self, sender, message):
-        if sender not in self.users:
-            print("Utilisateur non trouvé.")
-            return
-        for user in self.users:
-            self.users[user]['messages'].append((sender, message))
-
-
-    def get_messages(self, username):
-        if username not in self.users:
-            print("Utilisateur non trouvé.")
-            return []
-        return self.users[username]['messages']
-
-
-def main():
-    chat_room = ChatRoom()
-    print("\n1. Ajouter un utilisateur")
-    print("2. Ajouter des amis")
-    print("3. Envoyer un message")
-    print("4. Lire les messages")
-    print("5. Quitter\n")
+def handle_client(client_socket, client_address):
+    print(f"Connexion établie avec {client_address}")
+    client_name = client_socket.recv(1024).decode('utf-8')
+    clients[client_name] = client_socket
     while True:
-        choice = input("\nChoisissez une option : ")
-
-        if choice == '1':
-            username = input("Entrez le nom de l'utilisateur à ajouter : ")
-            chat_room.add_user(username)
-            print("Utilisateur ajouté avec succès.")
-
-        elif choice == '2':
-            username = input("Entrez le nom de l'utilisateur : ")
-            chat_room.add_friends(username)
-
-        elif choice == '3':
-            sender = input("Expéditeur : ")
-            message = input("Message : ")
-            chat_room.send_message(sender, message)
-            print("Message envoyé avec succès.")
-
-        elif choice == '4':
-            username = input("Entrez votre nom d'utilisateur : ")
-            messages = chat_room.get_messages(username)
-            print("Vos messages :")
-            for sender, message in messages:
-                print(f"De {sender}: {message}")
-
-        elif choice == '5':
-            print("Merci d'avoir utilisé le chat. Au revoir !")
+        try:
+            data = client_socket.recv(1024)
+            if not data:
+                break
+            print(f"{client_name}: {data.decode('utf-8')}")
+            if data.startswith(b'/checkfriend'):
+                friend_name = data.decode('utf-8').split(' ')[1]
+                if friend_name in clients:
+                    client_socket.send(f"/friendresponse True {friend_name}".encode('utf-8'))
+                else:
+                    client_socket.send(f"/friendresponse False {friend_name}".encode('utf-8'))
+            else:
+                broadcast(data, client_name)
+        except Exception as e:
+            print(f"Erreur: {e}")
             break
+    print(f"Déconnexion de {client_name}")
+    del clients[client_name]
+    client_socket.close()
 
-        else:
-            print("Option invalide. Veuillez réessayer.")
 
+def broadcast(message, sender_name):
+    for client_name, client_socket in clients.items():
+        if client_name != sender_name:
+            try:
+                client_socket.send(f"{sender_name}: {message}".encode('utf-8'))
+            except Exception as e:
+                print(f"Erreur lors de l'envoi du message : {e}")
+                client_socket.close()
+                del clients[client_name]
 
-if __name__ == "__main__":
-    main()
+HOST = '127.0.0.1'
+PORT = 8000
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(5)
+
+print(f"Serveur en attente de connexions sur le port {PORT}")
+
+clients = {}
+
+while True:
+    client_socket, client_address = server.accept()
+    client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address))
+    client_handler.start()
