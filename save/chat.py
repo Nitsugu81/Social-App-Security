@@ -57,10 +57,35 @@ def handle_command():
             group_name = command[1]
             target_client = command[2]
             if group_name in groups:
-                groups[group_name].remove(target_client)
-                print(f"Client '{target_client}' retiré du groupe '{group_name}'.")
+                if target_client in groups[group_name]:
+                    groups[group_name].remove(target_client)
+                    print(f"Client '{target_client}' retiré du groupe '{group_name}'.")
+                    # Envoyer un message au client retiré
+                    if target_client in clients:
+                        client_socket = clients[target_client]
+                        try:
+                            client_socket.send(f"remove:{group_name}".encode('utf-8'))
+                        except Exception as e:
+                            print(f"Erreur lors de l'envoi du message de suppression au client '{target_client}': {e}")
+                    # Vérifier s'il reste des membres dans le groupe
+                    if groups[group_name]:
+                        # Générer une nouvelle clé pour le groupe
+                        groups_keys[group_name] = generate_fernet_key()
+                        print(f"Nouvelle clé générée pour le groupe '{group_name}': {groups_keys[group_name]}")
+                        # Envoyer la nouvelle clé à tous les membres restants du groupe
+                        for member in groups[group_name]:
+                            if member in clients:
+                                client_socket = clients[member]
+                                key = groups_keys[group_name]
+                                try:
+                                    client_socket.send(f"{group_name}:{key}".encode('utf-8'))
+                                except Exception as e:
+                                    print(f"Erreur lors de l'envoi de la nouvelle clé au client '{member}': {e}")
+                else:
+                    print(f"Client '{target_client}' n'est pas dans le groupe '{group_name}'.")
             else:
                 print(f"Groupe '{group_name}' n'existe pas.")
+
         elif command[0] == '/see' and len(command) == 1:
             clients_without_group = []
             for group_name, clients_in_group in groups.items():

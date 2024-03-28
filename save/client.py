@@ -11,8 +11,17 @@ def receive_messages():
             parts = message.split(':')
             if len(parts) == 2:
                 group_name, group_key = parts
-                groups_keys[group_name] = group_key
-                print(groups_keys)
+                if group_name == "remove":
+                    del groups_keys[group_key]
+                    print(f"Vous avez été retiré du groupe '{group_key}'.")
+                else:
+                    if group_name in groups_keys : 
+                        groups_keys[group_name] = group_key
+                        print("Modification clef du groupe : ",group_name)
+                    else : 
+                        groups_keys[group_name] = group_key
+                        print("Ajouté au groupe : ",group_name)
+            
             else:
                 sender, group_name, message_content = parts
                 if group_name in groups_keys:  # Vérification si le groupe existe dans les clés
@@ -37,7 +46,6 @@ def send_messages():
     while True:
         message = input()
         if message.startswith('/'):
-            print(groups_keys)
             parts = message.split(' ', 1)
             if len(parts) >= 2:
                 command, content = parts
@@ -78,4 +86,3 @@ receive_thread.start()
 
 send_thread = threading.Thread(target=send_messages)
 send_thread.start()
-
