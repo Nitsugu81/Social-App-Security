@@ -8,10 +8,30 @@ def receive_messages():
     while True:
         try:
             message = client_socket.recv(1024).decode('utf-8')
-            print(message)
+            parts = message.split(':')
+            if len(parts) == 2:
+                group_name, group_key = parts
+                groups_keys[group_name] = group_key
+                print(groups_keys)
+            else:
+                sender, group_name, message_content = parts
+                if group_name in groups_keys:  # Vérification si le groupe existe dans les clés
+                    key_string = groups_keys[group_name]
+                    key_bytes = ast.literal_eval(key_string)
+                    cipher_suite = Fernet(key_bytes)
+                    
+                    message_content = ast.literal_eval(message_content)
+                    message_content= cipher_suite.decrypt(message_content)
+                    
+                    print(sender,":",group_name,":",message_content)
+                else:
+                    message = " : ".join(message.split(":"))
+                    print(message)
         except Exception as e:
             print(f"Erreur: {e}")
             break
+
+
 
 def send_messages():
     while True:
@@ -40,20 +60,6 @@ def send_messages():
         else:
             print("Choissisez un destinataire : '/all' or  '/group'")
 
-def receive_group_key():
-    while True:
-        try:
-            key_message = client_socket.recv(1024).decode('utf-8')
-            parts = key_message.split(':')
-            if len(parts) == 2:
-                group_name, group_key = parts
-                groups_keys[group_name] = group_key
-                print(key_message)
-            else:
-                break
-        except Exception as e:
-            print(f"Erreur lors de la réception de la clé du groupe : {e}")
-            break
 
 HOST = '127.0.0.1'
 PORT = 8000
@@ -73,5 +79,3 @@ receive_thread.start()
 send_thread = threading.Thread(target=send_messages)
 send_thread.start()
 
-group_key_thread = threading.Thread(target=receive_group_key)
-group_key_thread.start()

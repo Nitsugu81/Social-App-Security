@@ -10,9 +10,7 @@ def generate_fernet_key():
 def handle_client(client_socket, client_address):
     print(f"Connexion établie avec {client_address}")
     client_name = client_socket.recv(1024).decode('utf-8')
-        
     clients[client_name] = client_socket
-
     while True:
         try:
             data = client_socket.recv(1024)
@@ -20,7 +18,6 @@ def handle_client(client_socket, client_address):
             if not data:
                 break
             else:
-                print(data)
                 broadcast(data, client_name)
         except Exception as e:
             print(f"Erreur: {e}")
@@ -86,7 +83,7 @@ def broadcast(message, sender_name):
     for client_name, client_socket in clients.items():
         if client_name != sender_name:
             try:
-                client_socket.send(f"{sender_name}: {message}".encode('utf-8'))
+                client_socket.send(f"{sender_name}:{message}".encode('utf-8'))
             except Exception as e:
                 print(f"Erreur lors de l'envoi du message : {e}")
                 client_socket.close()
@@ -103,7 +100,7 @@ print(f"Serveur en attente de connexions sur le port {PORT}")
 
 clients = {}
 groups = {}
-groups_keys = {}  # Dictionnaire pour stocker les clés Fernet associées à chaque groupe
+groups_keys = {}  
 
 # Lancer le thread de gestion des commandes
 command_thread = threading.Thread(target=handle_command)
