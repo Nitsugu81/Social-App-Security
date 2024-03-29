@@ -2,6 +2,7 @@ import socket
 import threading
 from cryptography.fernet import Fernet
 import ast
+import ssl
 
 def receive_messages():
     while True:
@@ -71,7 +72,11 @@ def send_messages():
 HOST = '127.0.0.1'
 PORT = 8000
 
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Chargement du certificat auto-signé
+context = ssl.create_default_context()
+context.load_verify_locations("cert.pem")  # Remplacez "path_to_your_certificate.pem" par le chemin de votre certificat
+
+client_socket = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname="localhost")
 client_socket.connect((HOST, PORT))
 
 name = input("Entrez votre nom : ")

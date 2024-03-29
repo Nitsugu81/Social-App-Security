@@ -1,6 +1,8 @@
 import socket
 import threading
+import ssl
 from cryptography.fernet import Fernet
+import os
 
 # Fonction pour générer une nouvelle clé Fernet
 def generate_fernet_key():
@@ -120,6 +122,20 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((HOST, PORT))
 server.listen(5)
 
+# Chemin vers le certificat et la clé privée
+certfile = 'cert.pem'
+keyfile = 'key.pem'
+
+# Si les fichiers de certificat et de clé n'existent pas, générez-les
+if not os.path.exists(certfile) or not os.path.exists(keyfile):
+    # Générer un certificat autosigné
+    os.system(f'openssl req -new -x509 -days 365 -nodes -out {certfile} -keyout {keyfile}')
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain(certfile, keyfile)
+
+server_ssl = ssl_context.wrap_socket(server, server_side=True)
+
 print(f"Serveur en attente de connexions sur le port {PORT}")
 
 clients = {}
@@ -131,6 +147,6 @@ command_thread = threading.Thread(target=handle_command)
 command_thread.start()
 
 while True:
-    client_socket, client_address = server.accept()
+    client_socket, client_address = server_ssl.accept()
     client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address))
     client_handler.start()
